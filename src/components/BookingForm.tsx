@@ -5,14 +5,11 @@ import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { sendBookingConfirmations } from "@/utils/email-service";
+import { supabase } from "@/integrations/supabase/client";
 import { BookingFormData, FormSchema } from "./booking/types";
 import { PersonalInfoFields } from "./booking/PersonalInfoFields";
 import { GuestCountFields } from "./booking/GuestCountFields";
 import { DateFields } from "./booking/DateFields";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { motion, AnimatePresence } from 'framer-motion';
-import { Check } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 
 interface BookingFormProps {
@@ -43,17 +40,35 @@ export function BookingForm({ onSubmit }: BookingFormProps) {
     try {
       const bookingReference = `BK${Date.now().toString().slice(-6)}`;
       
-      // Send confirmation emails
-      await sendBookingConfirmations({
-        ...values,
-        bookingReference,
-        recipientEmail: "dandeliadventure.info@gmail.com"
-      }, bookingReference);
+      // Save booking to database
+      const { data: booking, error: dbError } = await supabase
+        .from('bookings')
+        .insert({
+          booking_reference: bookingReference,
+          name: values.name,
+          email: values.email,
+          phone: values.phone,
+          adults: parseInt(values.adults),
+          children: parseInt(values.children),
+          check_in_date: values.checkInDate.toISOString().split('T')[0],
+          check_out_date: values.checkOutDate.toISOString().split('T')[0],
+          status: 'pending'
+        })
+        .select()
+        .single();
 
-      // Instead of showing the confirmation dialog, redirect to success page
-      navigate('/booking-success');
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
+      }
+
+      // Pass booking data to parent component
+      onSubmit({ ...values, bookingReference, bookingId: booking.id });
       form.reset();
-      onSubmit(values);
+      
+      toast({
+        title: "Booking Submitted",
+        description: `Your booking reference is ${bookingReference}`,
+      });
     } catch (error) {
       console.error('Booking error:', error);
       toast({

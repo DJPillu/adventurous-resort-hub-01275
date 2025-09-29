@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import { Check, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sendEmail, formatBookingEmail, sendSMS, formatBookingSMS } from '@/utils/email-service';
+import { supabase } from '@/integrations/supabase/client';
 
 const BookingPage = () => {
   const {
@@ -38,6 +39,21 @@ const BookingPage = () => {
   const handlePaymentSuccess = async (paymentTransactionId: string) => {
     setTransactionId(paymentTransactionId);
     try {
+      // Update booking with payment transaction ID
+      if (currentBooking?.bookingId) {
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({
+            payment_transaction_id: paymentTransactionId,
+            status: 'confirmed'
+          })
+          .eq('id', currentBooking.bookingId);
+
+        if (updateError) {
+          console.error('Error updating booking:', updateError);
+        }
+      }
+
       const emailContent = formatBookingEmail({
         ...currentBooking,
         paymentTransactionId

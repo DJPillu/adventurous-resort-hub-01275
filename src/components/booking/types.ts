@@ -26,4 +26,7 @@ export const FormSchema = z.object({
   path: ["checkOutDate"],
 });
 
-export type BookingFormData = z.infer<typeof FormSchema>;
+export type BookingFormData = z.infer<typeof FormSchema> & {
+  bookingReference?: string;
+  bookingId?: string;
+};
